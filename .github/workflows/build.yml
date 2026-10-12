@@ -13,7 +13,9 @@ on:
     inputs:
       os-ref:
         description: The seedsigner-os ref (tag/branch/sha1) to use
-        default: main
+        # Pinned so builds don't silently pick up unreviewed seedsigner-os changes.
+        # Keep in sync with the fallback ref in the "checkout seedsigner-os" step.
+        default: c4cb767a00ace8edf5e9414450c2849e15958ad7
         required: true
 
 # Explicitly restrict the auto-provisioned GITHUB_TOKEN to the least privilege required
@@ -48,9 +50,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: "seedsigner/seedsigner-os"
-          # use the os-ref input parameter in case of workflow_dispatch or default to main in case of cron triggers
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os-ref || 'main' }}
+          # use the os-ref input parameter in case of workflow_dispatch, otherwise the pinned
+          # seedsigner-os commit (keep in sync with the os-ref input default above)
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os-ref || 'c4cb767a00ace8edf5e9414450c2849e15958ad7' }}
           submodules: true
+          persist-credentials: false
           path: "seedsigner-os"
           # get full history + tags for "git describe"
           fetch-depth: 0
@@ -62,6 +66,8 @@ jobs:
           path: "seedsigner-os/opt/rootfs-overlay/opt"
           # get full history + tags for "git describe"
           fetch-depth: 0
+          # Don't leave the job's GITHUB_TOKEN in .git/config, which is copied into the build
+          persist-credentials: false
 
       - name: Get and set meta data
         run: |
