@@ -1,0 +1,15 @@
+# Coldcard Multisig setup file (created by Sparrow)
+#
+Name: Test Wallet
+Policy: 2 of 3
+Format: P2WSH
+
+Derivation: m/48'/0'/0'/2'
+73C5DA0A: xpub6DkFAXWQ2dHxq2vatrt9qyA3bXYU4ToWQwCHbf5XB2mSTexcHZCeKS1VZYcPoBd5X8yVcbXFHJR9R8UCVpt82VX1VhR28mCyxUFL4r6KFrf
+
+Derivation: m/48'/0'/1'/2'
+3F635A63: xpub6EM8uMGUZMyVPM95MyiJKaQF476QWxmZZExfShr3eARKprqgqvS9m4ozAPZe4SBAbuBiRxy3QAuYcduqybq2vgXDVpvaioHDVaHbZTxnDMT
+
+Derivation: m/48'/0'/7'/2'
+B8688DF1: xpub6E5TLUfKhmMRz53sUHHTkf79BjmSWb81MDfS88Mn4SPFCFaFWyHyPxovSjhdQY6tSkDRopwM1qyGjPxxCJ9itV83H5UfHe5ecJxBT9tJ3LS
+

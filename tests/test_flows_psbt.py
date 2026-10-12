@@ -1,3 +1,4 @@
+import pytest
 from binascii import a2b_base64
 
 from embit import bip32, script
@@ -341,3 +342,77 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         # The psbt itself is kept: the user is choosing a different seed for it, not
         # starting over
         assert self.controller.psbt is not None
+
+
+
+class TestPSBTMultisigChangeDescriptorFromMicroSD(FlowTest):
+    """
+    Multisig change verification with the wallet descriptor loaded from a file on the
+    microSD card instead of scanning it.
+    """
+
+    @pytest.fixture(autouse=True)
+    def microsd_dir(self, tmp_path, monkeypatch):
+        from seedsigner.hardware.microsd import MicroSD
+        monkeypatch.setattr(MicroSD, "MOUNT_POINT", str(tmp_path))
+        self.microsd_dir = tmp_path
+
+
+    def _load_psbt_for_signing(self):
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        # Input is 1 BTC; leave a 10k sat fee
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_RECEIVE, 60_000_000))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 39_990_000))
+
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+        self.controller.psbt = psbt
+        self.controller.storage.set_pending_seed(PSBTTestData.seed)
+        self.controller.storage.finalize_pending_seed()
+
+
+    def _write_sparrow_descriptor_file(self, descriptor: str):
+        # Same layout as Sparrow's "Export > Output Descriptor" for a multisig wallet
+        receive = descriptor.split("#")[0].replace("<0;1>", "0")
+        self.microsd_dir.joinpath("wallet.txt").write_text(
+            "# Receive and change descriptor:\n" + descriptor + "\n\n\n"
+            + "# Receive descriptor:\n" + receive + "\n"
+        )
+
+
+    def _sequence_until_descriptor_loaded(self):
+        return [
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTAddressDetailsView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.LOAD_FROM_MICROSD),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorFromMicroSDView, is_redirect=True),
+            FlowStep(seed_views.MultisigWalletDescriptorFirstAddressView, button_data_selection=seed_views.MultisigWalletDescriptorFirstAddressView.CONFIRM),
+            FlowStep(seed_views.MultisigWalletDescriptorView, button_data_selection=seed_views.MultisigWalletDescriptorView.RETURN),
+        ]
+
+
+    def test_change_verified_with_descriptor_from_microsd(self):
+        self._write_sparrow_descriptor_file(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)
+        self._load_psbt_for_signing()
+
+        def assert_change_verified(view: psbt_views.PSBTChangeDetailsView):
+            # Same check the View makes before rendering "verified"
+            assert view.controller.psbt_parser.verify_multisig_output(view.controller.multisig_wallet_descriptor, change_num=0)
+
+        self.run_sequence(self._sequence_until_descriptor_loaded() + [
+            FlowStep(psbt_views.PSBTChangeDetailsView, before_run=assert_change_verified, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTFinalizeView),
+        ])
+
+
+    def test_change_rejected_with_wrong_descriptor_from_microsd(self):
+        """ A descriptor for a different wallet must fail change verification """
+        self._write_sparrow_descriptor_file(PSBTTestData.MULTISIG_NESTED_SEGWIT_DESCRIPTOR)
+        self._load_psbt_for_signing()
+
+        self.run_sequence(self._sequence_until_descriptor_loaded() + [
+            FlowStep(psbt_views.PSBTChangeDetailsView, is_redirect=True),
+            FlowStep(psbt_views.PSBTAddressVerificationFailedView),
+        ])
