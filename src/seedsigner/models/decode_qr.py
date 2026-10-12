@@ -581,7 +581,9 @@ class DecodeQR:
                 if len(xpubs) == 0:
                     xpubs = [None] * n
         
-                xpubs[x] = {'xfp': label, 'key': value}
+                # A "Derivation:" line applies to the keys that follow it, so a setup
+                # file can list a different derivation path per cosigner.
+                xpubs[x] = {'xfp': label, 'key': value, 'derivation': derivation}
                 x += 1
         
         if None in xpubs or len(xpubs) != n:
@@ -590,7 +592,7 @@ class DecodeQR:
         if m <= 0 or m > 9 or n <= 0 or n > 9:
             raise Exception(f"bad or missing policy")
         
-        if len(derivation) == 0:
+        if any(len(x['derivation']) == 0 for x in xpubs):
             raise Exception(f"bad or missing derivation path")
         
         if script_type not in ['p2wsh', 'p2sh-p2wsh', 'p2wsh-p2sh']:
@@ -608,6 +610,7 @@ class DecodeQR:
         descriptor = script_open
         
         for x in xpubs:
+            derivation = x['derivation']
             if derivation[0] == 'm':
                 derivation = derivation[1:]
             derivation = derivation.replace("'", "h")

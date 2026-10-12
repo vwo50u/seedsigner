@@ -1,0 +1,9 @@
+# Receive and change descriptor:
+wsh(sortedmulti(2,[73c5da0a/48h/0h/0h/2h]xpub6DkFAXWQ2dHxq2vatrt9qyA3bXYU4ToWQwCHbf5XB2mSTexcHZCeKS1VZYcPoBd5X8yVcbXFHJR9R8UCVpt82VX1VhR28mCyxUFL4r6KFrf/<0;1>/*,[3f635a63/48h/0h/1h/2h]xpub6EM8uMGUZMyVPM95MyiJKaQF476QWxmZZExfShr3eARKprqgqvS9m4ozAPZe4SBAbuBiRxy3QAuYcduqybq2vgXDVpvaioHDVaHbZTxnDMT/<0;1>/*,[b8688df1/48h/0h/7h/2h]xpub6E5TLUfKhmMRz53sUHHTkf79BjmSWb81MDfS88Mn4SPFCFaFWyHyPxovSjhdQY6tSkDRopwM1qyGjPxxCJ9itV83H5UfHe5ecJxBT9tJ3LS/<0;1>/*))#7xencutw
+
+
+# Receive descriptor:
+wsh(sortedmulti(2,[73c5da0a/48h/0h/0h/2h]xpub6DkFAXWQ2dHxq2vatrt9qyA3bXYU4ToWQwCHbf5XB2mSTexcHZCeKS1VZYcPoBd5X8yVcbXFHJR9R8UCVpt82VX1VhR28mCyxUFL4r6KFrf/0/*,[3f635a63/48h/0h/1h/2h]xpub6EM8uMGUZMyVPM95MyiJKaQF476QWxmZZExfShr3eARKprqgqvS9m4ozAPZe4SBAbuBiRxy3QAuYcduqybq2vgXDVpvaioHDVaHbZTxnDMT/0/*,[b8688df1/48h/0h/7h/2h]xpub6E5TLUfKhmMRz53sUHHTkf79BjmSWb81MDfS88Mn4SPFCFaFWyHyPxovSjhdQY6tSkDRopwM1qyGjPxxCJ9itV83H5UfHe5ecJxBT9tJ3LS/0/*))#n6yxh04h
+
+# Change descriptor:
+wsh(sortedmulti(2,[73c5da0a/48h/0h/0h/2h]xpub6DkFAXWQ2dHxq2vatrt9qyA3bXYU4ToWQwCHbf5XB2mSTexcHZCeKS1VZYcPoBd5X8yVcbXFHJR9R8UCVpt82VX1VhR28mCyxUFL4r6KFrf/1/*,[3f635a63/48h/0h/1h/2h]xpub6EM8uMGUZMyVPM95MyiJKaQF476QWxmZZExfShr3eARKprqgqvS9m4ozAPZe4SBAbuBiRxy3QAuYcduqybq2vgXDVpvaioHDVaHbZTxnDMT/1/*,[b8688df1/48h/0h/7h/2h]xpub6E5TLUfKhmMRz53sUHHTkf79BjmSWb81MDfS88Mn4SPFCFaFWyHyPxovSjhdQY6tSkDRopwM1qyGjPxxCJ9itV83H5UfHe5ecJxBT9tJ3LS/1/*))#k00uff9l
