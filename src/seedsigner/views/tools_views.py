@@ -504,6 +504,7 @@ class ToolsCalcFinalWordDoneView(View):
 class ToolsAddressExplorerSelectSourceView(View):
     SCAN_SEED = ButtonOption("Scan a seed", SeedSignerIconConstants.QRCODE)
     SCAN_DESCRIPTOR = ButtonOption("Scan wallet descriptor", SeedSignerIconConstants.QRCODE)
+    LOAD_DESCRIPTOR_FROM_MICROSD = ButtonOption("Load descriptor from microSD", SeedSignerIconConstants.MICROSD)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD, return_data=12)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD, return_data=24)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
@@ -516,7 +517,11 @@ class ToolsAddressExplorerSelectSourceView(View):
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             button_data.append(ButtonOption(button_str, SeedSignerIconConstants.FINGERPRINT))
-        button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
+        button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR]
+        from seedsigner.hardware.microsd import MicroSD
+        if MicroSD.get_instance().is_inserted:
+            button_data.append(self.LOAD_DESCRIPTOR_FROM_MICROSD)
+        button_data = button_data + [self.TYPE_12WORD, self.TYPE_24WORD]
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
 
@@ -553,6 +558,10 @@ class ToolsAddressExplorerSelectSourceView(View):
         elif button_data[selected_menu_num] == self.SCAN_DESCRIPTOR:
             from seedsigner.views.scan_views import ScanWalletDescriptorView
             return Destination(ScanWalletDescriptorView)
+
+        elif button_data[selected_menu_num] == self.LOAD_DESCRIPTOR_FROM_MICROSD:
+            from seedsigner.views.seed_views import LoadMultisigWalletDescriptorFromMicroSDView
+            return Destination(LoadMultisigWalletDescriptorFromMicroSDView)
 
         elif button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView

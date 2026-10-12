@@ -1574,6 +1574,37 @@ class LoadMultisigWalletDescriptorScreen(ButtonListScreen):
 
 
 @dataclass
+class MultisigWalletDescriptorFirstAddressScreen(ButtonListScreen):
+    address: str = None
+    network: str = None
+    is_mainnet: bool = True
+
+    def __post_init__(self):
+        # TRANSLATOR_NOTE: Title of the screen where the user compares a loaded multisig descriptor's first receive address against their wallet
+        self.title = _("Check Address")
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        # TRANSLATOR_NOTE: Instruction above the multisig descriptor's first receive address
+        text = _("Receive #0 must match your wallet:")
+        if not self.is_mainnet:
+            text += f" ({self.network})"
+        self.components.append(TextArea(
+            text=text,
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            is_text_centered=True,
+            screen_y=self.top_nav.height,
+        ))
+
+        self.components.append(FormattedAddress(
+            address=self.address,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+
+
+@dataclass
 class MultisigWalletDescriptorScreen(ButtonListScreen):
     policy: str = None
     fingerprints: List[str] = None

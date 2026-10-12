@@ -1,3 +1,5 @@
+import pytest
+
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
@@ -340,3 +342,105 @@ class TestToolsImageEntropyFlows(FlowTest):
             FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Mock()] * ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE),
             FlowStep(tools_views.ToolsImageEntropyFinalImageView),
         ])
+
+
+
+class TestLoadDescriptorFromMicroSDFlows(FlowTest):
+    # Legacy p2sh 2-of-3 descriptor from test_psbt_parser.py
+    P2SH_DESCRIPTOR = "sh(sortedmulti(2,[0f889044/45h]tpubD8NkS3Gngj7L4FJRYrwojKhsx2seBhrNrXVdvqaUyvtVe1YDCVcziZVa9g3KouXz7FN5CkGBkoC16nmNu2HcG9ubTdtCbSW8DEXSMHmmu62/<0;1>/*,[03cd0a2b/45h]tpubD8HkLLgkdJkVitn1i9CN4HpFKJdom48iKm9PyiXYz5hivn1cGz6H3VeS6ncmCEgamvzQA2Qofu2YSTwWzvuaYWbJDEnvTUtj5R96vACdV6L/<0;1>/*,[769f695c/45h]tpubD98hRDKvtATTM8hy5Vvt5ZrvDXwJvrUZm1p1mTKDmd7FqUHY9Wj2k4X1CvxjjtTf3JoChWqYbnWjfkRJ65GQnpVJKbbMfjnGzCwoBUXafyM/<0;1>/*))#uardwtq4"
+
+    @pytest.fixture(autouse=True)
+    def microsd_dir(self, tmp_path, monkeypatch):
+        from seedsigner.hardware.microsd import MicroSD
+        monkeypatch.setattr(MicroSD, "MOUNT_POINT", str(tmp_path))
+        (tmp_path / "config.txt").write_text("arm_64bit=0\n")  # boot partition noise
+        self.microsd_dir = tmp_path
+
+
+    def test__verify_address__load_descriptor_from_microsd__flow(self):
+        """
+            A single descriptor file on the microSD is loaded without a picker; the
+            user confirms receive address #0 and goes on to verify the address.
+        """
+        (self.microsd_dir / "wallet.txt").write_text(self.P2SH_DESCRIPTOR)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Receive addr @ index 5 from test_psbt_parser.py
+            view.decoder.add_data("2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH")
+
+        def check_first_address(view: seed_views.MultisigWalletDescriptorFirstAddressView):
+            from seedsigner.helpers import embit_utils
+            assert embit_utils.get_multisig_address(view.controller.multisig_wallet_descriptor, index=0, embit_network="regtest") == "2Mzn3axm8tkirSwtB8m8vZ5VEUsyVUmPiv5"
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.LOAD_FROM_MICROSD),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorFromMicroSDView, is_redirect=True),
+            FlowStep(seed_views.MultisigWalletDescriptorFirstAddressView, before_run=check_first_address, button_data_selection=seed_views.MultisigWalletDescriptorFirstAddressView.CONFIRM),
+            FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
+            FlowStep(seed_views.SeedAddressVerificationView),
+            FlowStep(seed_views.SeedAddressVerificationSuccessView),
+        ])
+
+
+    def test__address_explorer__load_descriptor_from_microsd__flow(self):
+        """
+            With multiple descriptor files the user picks one; BACK from the address
+            check discards the descriptor.
+        """
+        (self.microsd_dir / "a_wallet.txt").write_text(self.P2SH_DESCRIPTOR)
+        (self.microsd_dir / "b_wallet.descriptor").write_text(self.P2SH_DESCRIPTOR)
+
+        def assert_no_descriptor(view):
+            assert view.controller.multisig_wallet_descriptor is None
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.LOAD_DESCRIPTOR_FROM_MICROSD),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorFromMicroSDView, screen_return_value=1),
+            FlowStep(seed_views.MultisigWalletDescriptorFirstAddressView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorFromMicroSDView, before_run=assert_no_descriptor, screen_return_value=0),
+            FlowStep(seed_views.MultisigWalletDescriptorFirstAddressView, button_data_selection=seed_views.MultisigWalletDescriptorFirstAddressView.CONFIRM),
+            FlowStep(seed_views.MultisigWalletDescriptorView, button_data_selection=seed_views.MultisigWalletDescriptorView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView),
+        ])
+
+
+    def test__load_descriptor_from_microsd__errors__flow(self):
+        """ No matching file, or an invalid one, routes to an ErrorView and back. """
+        def sequence(expected_headline):
+            def check_headline(view: ErrorView):
+                assert view.status_headline == expected_headline
+
+            return [
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+                FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+                FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.LOAD_DESCRIPTOR_FROM_MICROSD),
+                FlowStep(seed_views.LoadMultisigWalletDescriptorFromMicroSDView, is_redirect=True),
+                FlowStep(ErrorView, before_run=check_headline, screen_return_value=0),
+                FlowStep(tools_views.ToolsAddressExplorerSelectSourceView),
+            ]
+
+        # No descriptor file
+        self.run_sequence(sequence("No Descriptor Found"))
+
+        # Bad checksum
+        (self.microsd_dir / "wallet.txt").write_text(self.P2SH_DESCRIPTOR[:-1] + "x")
+        self.run_sequence(sequence("Invalid Descriptor"))
+        assert self.controller.multisig_wallet_descriptor is None
+
+
+    def test__load_descriptor_from_microsd__hidden_without_microsd(self):
+        from base import FlowTestInvalidButtonDataSelectionException
+        self.mock_microsd.is_inserted = False
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException):
+            self.run_sequence([
+                FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.LOAD_FROM_MICROSD),
+            ])
