@@ -2021,10 +2021,16 @@ class SeedAddressVerificationSuccessView(View):
 
 class LoadMultisigWalletDescriptorView(View):
     SCAN = ButtonOption("Scan descriptor", SeedSignerIconConstants.QRCODE)
+    LOAD_FROM_MICROSD = ButtonOption("Load from microSD", SeedSignerIconConstants.MICROSD)
     CANCEL = ButtonOption("Cancel")
 
     def run(self):
-        button_data = [self.SCAN, self.CANCEL]
+        from seedsigner.hardware.microsd import MicroSD
+        button_data = [self.SCAN]
+        if MicroSD.get_instance().is_inserted:
+            button_data.append(self.LOAD_FROM_MICROSD)
+        button_data.append(self.CANCEL)
+
         selected_menu_num = self.run_screen(
             seed_screens.LoadMultisigWalletDescriptorScreen,
             button_data=button_data,
@@ -2035,12 +2041,110 @@ class LoadMultisigWalletDescriptorView(View):
             from seedsigner.views.scan_views import ScanWalletDescriptorView
             return Destination(ScanWalletDescriptorView)
 
+        elif button_data[selected_menu_num] == self.LOAD_FROM_MICROSD:
+            return Destination(LoadMultisigWalletDescriptorFromMicroSDView)
+
         elif button_data[selected_menu_num] == self.CANCEL:
             from seedsigner.controller import Controller
             if self.controller.resume_main_flow == Controller.FLOW__PSBT:
                 return Destination(BackStackView)
             else:
                 return Destination(MainMenuView)
+
+
+
+class LoadMultisigWalletDescriptorFromMicroSDView(View):
+    """
+    Lists the descriptor files in the root of the microSD card. A single match is
+    loaded directly; otherwise the user picks one.
+    """
+    def run(self):
+        from seedsigner.helpers.descriptor_file import DescriptorFileError, list_descriptor_files, read_descriptor_file
+        from seedsigner.hardware.microsd import MicroSD
+        from seedsigner.views.view import ErrorView
+
+        directory = MicroSD.MOUNT_POINT
+        filenames = list_descriptor_files(directory)
+
+        if not filenames:
+            return Destination(
+                ErrorView,
+                view_args=dict(
+                    status_headline=_("No Descriptor Found"),
+                    text=_("Put a .txt file containing your multisig descriptor in the root of the microSD card."),
+                    button_text=_("Back"),
+                    next_destination=Destination(BackStackView),
+                ),
+                skip_current_view=True,
+            )
+
+        if len(filenames) == 1:
+            filename = filenames[0]
+        else:
+            button_data = [ButtonOptionWithoutTranslation(filename) for filename in filenames]
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title=_("Select File"),
+                button_data=button_data,
+                is_button_text_centered=False,
+            )
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+            filename = filenames[selected_menu_num]
+
+        try:
+            descriptor = read_descriptor_file(directory, filename)
+        except DescriptorFileError as e:
+            logger.info(f"Could not load descriptor from {filename}: {e}")
+            return Destination(
+                ErrorView,
+                view_args=dict(
+                    status_headline=_("Invalid Descriptor"),
+                    text=f"{filename}: {e}",
+                    button_text=_("Back"),
+                    next_destination=Destination(BackStackView),
+                ),
+                skip_current_view=len(filenames) == 1,
+            )
+
+        self.controller.multisig_wallet_descriptor = descriptor
+        return Destination(MultisigWalletDescriptorFirstAddressView, skip_current_view=len(filenames) == 1)
+
+
+
+class MultisigWalletDescriptorFirstAddressView(View):
+    """
+    A descriptor loaded from a file is only as trustworthy as whoever last wrote
+    to the microSD card: a swapped cosigner xpub keeps the fingerprints intact but
+    changes every address. Have the user compare receive address #0 against their
+    wallet backup before continuing.
+    """
+    CONFIRM = ButtonOption("Address matches")
+
+    def run(self):
+        from seedsigner.helpers import embit_utils
+        descriptor = self.controller.multisig_wallet_descriptor
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        address = embit_utils.get_multisig_address(
+            descriptor=descriptor,
+            index=0,
+            is_change=False,
+            embit_network=embit_utils.get_embit_network_name(network),
+        )
+
+        selected_menu_num = self.run_screen(
+            seed_screens.MultisigWalletDescriptorFirstAddressScreen,
+            address=address,
+            network=network,
+            is_mainnet=network == SettingsConstants.MAINNET,
+            button_data=[self.CONFIRM],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            self.controller.multisig_wallet_descriptor = None
+            return Destination(BackStackView)
+
+        return Destination(MultisigWalletDescriptorView, skip_current_view=True)
 
 
 

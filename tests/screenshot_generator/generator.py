@@ -425,6 +425,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedAddressVerificationSuccessView,              mock_context_manager=mock_address_verification_data_loaded),
 
                 ScreenshotConfig(seed_views.LoadMultisigWalletDescriptorView),
+                ScreenshotConfig(seed_views.MultisigWalletDescriptorFirstAddressView, mock_context_manager=mock_multisig_wallet_descriptor_loaded),
                 ScreenshotConfig(seed_views.MultisigWalletDescriptorView, mock_context_manager=mock_multisig_wallet_descriptor_loaded),
                 ScreenshotConfig(seed_views.SeedDiscardView, dict(seed=seed_12)),
 
