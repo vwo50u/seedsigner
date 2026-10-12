@@ -41,7 +41,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [ "pi0", "pi2", "pi02w", "pi4" ]
+        # This fork only targets the Pi Zero (pi0); add "pi2", "pi02w", "pi4" back if needed
+        target: [ "pi0" ]
     steps:
       - name: checkout seedsigner-os
         uses: actions/checkout@v4
