@@ -91,7 +91,10 @@ def parse_descriptor_text(text: str) -> Descriptor:
         descriptor_str = None
         for line in text.splitlines():
             line = line.strip()
-            if re.match(r"^(sh|wsh)\(", line):
+            # Skip a change-only descriptor (`/1/*`, e.g. listed before the receive
+            # one): its address #0 would be shown to the user as receive #0.
+            is_change_only = "/1/*" in line and not re.search(r"/0/\*|<0;1>|\{0,1\}", line)
+            if re.match(r"^(sh|wsh)\(", line) and not is_change_only:
                 descriptor_str = line
                 break
 

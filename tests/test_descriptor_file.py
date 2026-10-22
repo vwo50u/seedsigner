@@ -59,6 +59,16 @@ def test_parse_skips_comments_and_uses_first_descriptor_line():
     assert addr(descriptor, 5) == RECEIVE_ADDR_5
 
 
+def test_parse_skips_change_only_descriptor():
+    change_only = "sh(sortedmulti(2," + ",".join(k + "/1/*" for k in KEYS) + "))"
+    descriptor = parse_descriptor_text(change_only + "\n" + P2SH_RECEIVE_DESCRIPTOR)
+    assert addr(descriptor, 5) == RECEIVE_ADDR_5
+    assert addr(descriptor, 5, is_change=True) == CHANGE_ADDR_5
+
+    with pytest.raises(DescriptorFileError, match="No descriptor found"):
+        parse_descriptor_text(change_only)
+
+
 def test_parse_rejects_bad_checksum():
     with pytest.raises(DescriptorFileError, match="checksum"):
         parse_descriptor_text(P2SH_DESCRIPTOR[:-1] + "x")
