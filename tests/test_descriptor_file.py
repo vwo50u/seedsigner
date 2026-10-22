@@ -64,6 +64,13 @@ def test_parse_rejects_bad_checksum():
         parse_descriptor_text(P2SH_DESCRIPTOR[:-1] + "x")
 
 
+def test_parse_rejects_invalid_characters_with_checksum():
+    # A curly quote (e.g. from a word processor) is outside the checksum charset
+    curly = "wsh(sortedmulti(2,[73c5da0a/48’/0h/0h/2h]" + KEYS[0].split("]")[1] + "/<0;1>/*))#abcdefgh"
+    with pytest.raises(DescriptorFileError, match="Invalid descriptor"):
+        parse_descriptor_text(curly)
+
+
 def test_parse_rejects_tampered_key_with_stale_checksum():
     # Swapping a single cosigner xpub without recomputing the checksum is caught...
     tampered = P2SH_DESCRIPTOR.replace(KEYS[2].split("]")[1], KEYS[1].split("]")[1])

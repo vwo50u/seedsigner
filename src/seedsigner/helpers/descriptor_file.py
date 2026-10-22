@@ -102,7 +102,13 @@ def parse_descriptor_text(text: str) -> Descriptor:
             # embit doesn't validate the checksum, so we do it ourselves. This only
             # catches typos/corruption; anyone who can edit the file can recompute it.
             desc, check = descriptor_str.split("#", 1)
-            if descriptor_checksum(desc) != check:
+            try:
+                # raises on characters outside the descriptor charset (e.g. curly quotes)
+                computed = descriptor_checksum(desc)
+            except Exception as e:
+                logger.info(repr(e), exc_info=True)
+                raise DescriptorFileError("Invalid descriptor")
+            if computed != check:
                 raise DescriptorFileError("Descriptor checksum mismatch")
 
     try:
