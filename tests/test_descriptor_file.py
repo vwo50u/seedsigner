@@ -96,6 +96,21 @@ def test_parse_rejects_singlesig():
         parse_descriptor_text("sh(wpkh([0f889044/49h/1h/0h]" + KEYS[0].split("]")[1] + "/<0;1>/*))")
 
 
+def test_parse_rejects_keys_without_wildcard():
+    descriptor_str = "sh(sortedmulti(2," + ",".join(k + "/0/0" for k in KEYS) + "))"
+    with pytest.raises(DescriptorFileError, match="must end in"):
+        parse_descriptor_text(descriptor_str)
+
+    descriptor_str = "sh(sortedmulti(2," + KEYS[0] + "/0/0," + ",".join(k + "/<0;1>/*" for k in KEYS[1:]) + "))"
+    with pytest.raises(DescriptorFileError, match="must end in"):
+        parse_descriptor_text(descriptor_str)
+
+
+def test_parse_rejects_unsorted_multi():
+    with pytest.raises(DescriptorFileError, match="sortedmulti"):
+        parse_descriptor_text(P2SH_DESCRIPTOR.split("#")[0].replace("sortedmulti", "multi"))
+
+
 def test_parse_rejects_garbage():
     for text in ["", "hello", "wsh(sortedmulti(2,notakey,notakey))"]:
         with pytest.raises(DescriptorFileError):

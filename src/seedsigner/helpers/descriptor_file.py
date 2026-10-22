@@ -123,6 +123,16 @@ def parse_descriptor_text(text: str) -> Descriptor:
     if not descriptor.is_basic_multisig:
         raise DescriptorFileError("Not a multisig descriptor")
 
+    # The user only compares receive address #0 against their backup, so reject
+    # descriptors that can match there and still differ elsewhere: keys without a
+    # wildcard (every index is the same address) and `multi()`, whose fixed key
+    # order can be chosen to agree with the sorted order at index 0 only.
+    if not descriptor.is_sorted:
+        raise DescriptorFileError("Not a sortedmulti descriptor")
+
+    if not all(k.allowed_derivation is not None and k.allowed_derivation.is_wildcard for k in descriptor.keys):
+        raise DescriptorFileError("Descriptor keys must end in /*")
+
     return descriptor
 
 
