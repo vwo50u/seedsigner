@@ -138,9 +138,32 @@ def test_parse_multisig_setup_file():
         assert addr(descriptor, i, is_change=True) == addr(expected, i, is_change=True)
 
 
+def test_parse_multisig_setup_file_with_derivation_after_keys():
+    xpubs = [k.split("]")[1] for k in KEYS]
+    lines = [f"{k[1:9].upper()}: {xpub}" for k, xpub in zip(KEYS, xpubs)]
+    expected = parse_descriptor_text(
+        "wsh(sortedmulti(2," + ",".join(f"[{k[1:9]}/48h/1h/0h/2h]{xpub}/<0;1>/*" for k, xpub in zip(KEYS, xpubs)) + "))"
+    )
+    expected_origins = sorted(str(k.origin) for k in expected.keys)
+
+    for text in [
+        # A single Derivation line after the keys applies to all of them
+        "\n".join(["Policy: 2 of 3", "Format: P2WSH"] + lines + ["Derivation: m/48'/1'/0'/2'"]),
+        # Keys before the first Derivation line get the last one
+        "\n".join(["Policy: 2 of 3", "Format: P2WSH", lines[0], "Derivation: m/48'/1'/0'/2'"] + lines[1:]),
+    ]:
+        descriptor = parse_descriptor_text(text)
+        assert sorted(str(k.origin) for k in descriptor.keys) == expected_origins
+        assert addr(descriptor, 0) == addr(expected, 0)
+
+
 def test_parse_rejects_bad_multisig_setup_file():
     with pytest.raises(DescriptorFileError, match="setup file"):
         parse_descriptor_text("Policy: 2 of 3\nFormat: P2WSH\n")
+
+    with pytest.raises(DescriptorFileError, match="bad or missing script format"):
+        parse_descriptor_text("Policy: 2 of 3\nDerivation: m/48'/1'/0'/2'\n" + "\n".join(
+            f"{k[1:9].upper()}: {k.split(']')[1]}" for k in KEYS))
 
 
 

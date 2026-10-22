@@ -546,6 +546,7 @@ class DecodeQR:
         xpubs = []
         x = 0
         derivation = ''
+        script_type = ''
         descriptor = ''
         
         lines = text.split('\n')
@@ -588,6 +589,12 @@ class DecodeQR:
         
         if None in xpubs or len(xpubs) != n:
             raise Exception(f"bad or missing xpub")
+
+        # Keys listed before any "Derivation:" line (e.g. one Derivation line after
+        # the keys) get the last one, as they did before per-key paths were honored.
+        for xpub in xpubs:
+            if len(xpub['derivation']) == 0:
+                xpub['derivation'] = derivation
         
         if m <= 0 or m > 9 or n <= 0 or n > 9:
             raise Exception(f"bad or missing policy")
