@@ -346,12 +346,31 @@ def test_invalid_bitcoin_address():
 
         # typo in "bitcoin:" prefix
         "bitcon:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+
+        # no address before the query; an address only in a query param
+        "bitcoin:?label=Invoice:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+
+        # valid addr w/trailing garbage
+        "bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq!",
     ]
 
     for bad_input in bad_inputs:
         d = DecodeQR()
         status = d.add_data(bad_input)
         assert status == DecodeQRStatus.INVALID
+
+
+
+def test_bitcoin_address_ignores_addresses_in_query_params():
+    """
+    Decoder should only return the BIP-21 path address, which is what a payer's wallet
+    pays, never an address that appears later in the query params.
+    """
+    data = "bitcoin:" + taproot_address_mainnet + "?amount=0.5&label=Invoice:" + native_segwit_address_mainnet
+    d = DecodeQR()
+    assert d.add_data(data) == DecodeQRStatus.COMPLETE
+    assert d.get_address() == taproot_address_mainnet
+    assert d.get_address_type() == (SettingsConstants.TAPROOT, SettingsConstants.MAINNET)
 
 
 

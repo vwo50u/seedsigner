@@ -1015,15 +1015,22 @@ class BitcoinAddressQrDecoder(BaseSingleFrameQrDecoder):
         """
             Input may be prefixed with "bitcoin:" but will be ignored.
 
+            In a BIP-21 URI the address is everything between "bitcoin:" and the first
+            "?". Only that part is considered: a query param can carry a different
+            address (e.g. "?label=Invoice:<addr>"), but a payer's wallet pays the one
+            before the "?", so that is the one that must be verified.
+
             RegEx searches for a recognizable bitcoin address.
                 * The `^` ensures that the specified address prefixes can only match at
                     the beginning of the address.
+                * The `$` rejects anything trailing the address.
 
             Result will yield the following match groups:
                 * group 1: complete address
                 * group 2: address prefix
         """
-        address_match = re.search(r'^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})', segment.split(":")[-1], re.IGNORECASE)
+        address_part = segment.split("?", 1)[0].strip()
+        address_match = re.search(r'^(?:bitcoin:)?((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})$', address_part, re.IGNORECASE)
         if address_match != None:
             self.address = address_match.group(1)
             self.complete = True
